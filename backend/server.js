@@ -19,6 +19,7 @@ app.use('/api/certification', require('./routes/certification')); // 👇 新增
 app.use('/api/admin', require('./routes/admin')); // 👇 新增这行，挂载后台管理路由
 app.use('/api/user', require('./routes/user'));
 
+
 app.get('/', (req, res) => {
     res.json({ code: 200, message: '摄影平台后端服务运行正常！' });
 });

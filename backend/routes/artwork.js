@@ -121,5 +121,23 @@ router.get('/detail/:id', async (req, res) => {
         res.status(500).json({ code: 500, message: '服务器异常' });
     }
 });
-
+// --- 获取关注用户的最新动态推送 (Feed流) ---
+router.get('/feed/:user_id', async (req, res) => {
+    try {
+        const query = `
+            SELECT a.id, a.title, a.cover_url, a.like_count, a.view_count, a.created_at,
+                   u.id as user_id, u.nickname, u.avatar 
+            FROM artworks a
+            JOIN follows f ON a.user_id = f.following_id
+            JOIN users u ON a.user_id = u.id
+            WHERE f.follower_id = ? AND a.status = 1
+            ORDER BY a.created_at DESC
+        `;
+        const [rows] = await db.query(query, [req.params.user_id]);
+        res.json({ code: 200, data: rows });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '获取动态失败' });
+    }
+});
 module.exports = router;

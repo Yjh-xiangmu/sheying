@@ -55,10 +55,10 @@
 
             <div class="comments-list">
               <div class="comment-item" v-for="item in comments" :key="item.id">
-                <el-avatar :size="45" :src="getAvatarUrl(item.avatar)" class="comment-avatar" />
+                <el-avatar :size="45" :src="getAvatarUrl(item.avatar)" class="comment-avatar" @click="$router.push(`/user/${item.user_id}`)" style="cursor: pointer;" />
                 <div class="comment-content-wrapper">
                   <div class="comment-header">
-                    <span class="comment-user">{{ item.nickname }}</span>
+                    <span class="comment-user" @click="$router.push(`/user/${item.user_id}`)" style="cursor: pointer;">{{ item.nickname }}</span>
                     <span class="comment-time">{{ formatTime(item.created_at) }}</span>
                   </div>
                   <p class="comment-text">{{ item.content }}</p>
@@ -68,10 +68,10 @@
 
                   <div class="replies-list" v-if="item.replies && item.replies.length > 0">
                     <div class="reply-item" v-for="reply in item.replies" :key="reply.id">
-                      <el-avatar :size="30" :src="getAvatarUrl(reply.avatar)" class="reply-avatar" />
+                      <el-avatar :size="30" :src="getAvatarUrl(reply.avatar)" class="reply-avatar" @click="$router.push(`/user/${reply.user_id}`)" style="cursor: pointer;" />
                       <div class="reply-content-wrapper">
                         <div class="reply-header">
-                          <span class="reply-user">{{ reply.nickname }}</span>
+                          <span class="reply-user" @click="$router.push(`/user/${reply.user_id}`)" style="cursor: pointer;">{{ reply.nickname }}</span>
                           <span class="reply-time">{{ formatTime(reply.created_at) }}</span>
                         </div>
                         <p class="reply-text">{{ reply.content }}</p>
@@ -89,8 +89,8 @@
 
         <div class="sidebar">
           <div class="author-card">
-            <el-avatar :size="90" :src="getAvatarUrl(artwork.avatar)" class="author-avatar" />
-            <h3 class="author-name">{{ artwork.nickname }}</h3>
+            <el-avatar :size="90" :src="getAvatarUrl(artwork.avatar)" class="author-avatar" @click="$router.push(`/user/${artwork.user_id}`)" style="cursor: pointer;" />
+            <h3 class="author-name" @click="$router.push(`/user/${artwork.user_id}`)" style="cursor: pointer;">{{ artwork.nickname }}</h3>
             <p class="author-bio">{{ artwork.bio || '用光影记录世界，暂时没有写下简介...' }}</p>
 
             <div class="author-actions">
@@ -113,7 +113,7 @@
               <button class="action-btn collect-btn" :class="{ 'is-collected': isCollected }" title="收藏"><el-icon :size="22"><StarFilled v-if="isCollected" /><Star v-else /></el-icon></button>
               <span class="action-label">{{ isCollected ? '已收藏' : '收藏' }}</span>
             </div>
-            <div class="action-item">
+            <div class="action-item" @click="openShareDialog">
               <button class="action-btn share-btn" title="分享"><el-icon :size="22"><Share /></el-icon></button>
               <span class="action-label">分享</span>
             </div>
@@ -123,7 +123,7 @@
     </div>
 
     <el-dialog v-model="showReportDialog" title="举报违规作品" width="400px" center custom-class="dark-dialog">
-      <div class="report-desc">请选择您要举报的违规类型，管理员会尽快核实处理。恶意举报将会影响您的账号信誉。</div>
+      <div class="report-desc">请选择您要举报的违规类型，管理员会尽快核实处理。</div>
       <el-form label-position="top">
         <el-form-item>
           <el-radio-group v-model="reportReason" direction="vertical" class="report-radios">
@@ -135,7 +135,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item v-if="reportReason === '其他原因'">
-          <el-input v-model="customReportReason" type="textarea" :rows="3" placeholder="请详细描述该作品的违规情况..." class="dark-input"/>
+          <el-input v-model="customReportReason" type="textarea" :rows="3" placeholder="请详细描述..." class="dark-input"/>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -144,6 +144,27 @@
           <el-button type="danger" @click="submitReport" :loading="reporting" round>提交举报</el-button>
         </span>
       </template>
+    </el-dialog>
+
+    <el-dialog v-model="showShareDialog" title="分享给朋友" width="400px" center custom-class="dark-dialog">
+      <div class="share-header">私信发送给：</div>
+      <div class="share-friends-list" v-loading="loadingFriends">
+        <div v-if="shareFriends.length === 0" class="empty-state">暂无联系人，快去关注摄影师吧</div>
+        <div
+          v-else
+          class="share-friend-item"
+          v-for="friend in shareFriends"
+          :key="friend.id"
+          @click="confirmShare(friend)"
+        >
+          <el-avatar :size="40" :src="getAvatarUrl(friend.avatar)" />
+          <div class="share-friend-info">
+            <span class="name">{{ friend.nickname }}</span>
+            <span v-if="friend.isStranger" class="tag">未关注</span>
+          </div>
+          <el-button type="primary" size="small" round>发送</el-button>
+        </div>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -161,7 +182,6 @@ const artwork = ref(null);
 const comments = ref([]);
 const commentContent = ref('');
 
-// 抖音化回复目标对象
 const replyTarget = ref(null);
 
 const isLiked = ref(false);
@@ -174,7 +194,11 @@ const reportReason = ref('色情低俗');
 const customReportReason = ref('');
 const reporting = ref(false);
 
-// 统一头像处理函数
+// 【新增】分享相关状态
+const showShareDialog = ref(false);
+const shareFriends = ref([]);
+const loadingFriends = ref(false);
+
 const getAvatarUrl = (path) => {
   return path ? `http://localhost:3000${path}` : 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png';
 };
@@ -212,7 +236,6 @@ const fetchComments = async (id) => {
   } catch (error) {}
 };
 
-// 【处理点击回复】
 const handleReply = (targetUserItem, topLevelId) => {
   replyTarget.value = {
     parentId: topLevelId,
@@ -228,44 +251,23 @@ const cancelReply = () => {
   commentContent.value = '';
 };
 
-// 【提交评论 / 回复】
 const submitComment = async () => {
   const user = checkLogin();
   if (!user) return;
-
   let finalContent = commentContent.value.trim();
   if (!finalContent) return ElMessage.warning('评论内容不能为空');
-
-  // 如果是回复楼中楼，加上前缀
   if (replyTarget.value && replyTarget.value.isSub) {
     finalContent = `回复 @${replyTarget.value.nickname} : ${finalContent}`;
   }
-
   commenting.value = true;
   try {
-    const payload = {
-      artwork_id: artwork.value.id,
-      user_id: user.id,
-      content: finalContent,
-      parent_id: replyTarget.value ? replyTarget.value.parentId : null
-    };
-
+    const payload = { artwork_id: artwork.value.id, user_id: user.id, content: finalContent, parent_id: replyTarget.value ? replyTarget.value.parentId : null };
     const res = await request.post('/interaction/comment', payload);
-
-    if(res.message.includes('审核')) {
-      ElMessage.warning(res.message);
-    } else {
-      ElMessage.success('评论成功');
-    }
-
-    commentContent.value = '';
-    replyTarget.value = null;
-    await fetchComments(artwork.value.id);
-  } catch (error) {
-  } finally { commenting.value = false; }
+    if(res.message.includes('审核')) { ElMessage.warning(res.message); } else { ElMessage.success('评论成功'); }
+    commentContent.value = ''; replyTarget.value = null; await fetchComments(artwork.value.id);
+  } catch (error) {} finally { commenting.value = false; }
 };
 
-// 【关注操作】
 const toggleFollow = async () => {
   const user = checkLogin();
   if (!user) return;
@@ -274,20 +276,16 @@ const toggleFollow = async () => {
     if (res.code === 200) {
       isFollowing.value = res.data.isFollowing;
       ElMessage.success(res.message);
-    } else {
-      ElMessage.warning(res.message);
-    }
+    } else { ElMessage.warning(res.message); }
   } catch (error) {}
 };
 
-// 跳转到私信页面
 const goToMessage = () => {
   const user = checkLogin();
   if (!user) return;
   router.push(`/message?chat_with=${artwork.value.user_id}`);
 };
 
-// 【点赞操作】
 const toggleLike = async () => {
   const user = checkLogin();
   if (!user) return;
@@ -298,7 +296,6 @@ const toggleLike = async () => {
   } catch (error) {}
 };
 
-// 【收藏操作】
 const toggleCollect = async () => {
   const user = checkLogin();
   if (!user) return;
@@ -309,7 +306,45 @@ const toggleCollect = async () => {
   } catch (error) {}
 };
 
-// 【举报操作】
+// 【新增核心逻辑】打开分享弹窗并加载联系人
+const openShareDialog = async () => {
+  const user = checkLogin();
+  if (!user) return;
+
+  showShareDialog.value = true;
+  loadingFriends.value = true;
+  try {
+    const res = await request.get(`/interaction/friends/${user.id}`);
+    shareFriends.value = res.data;
+  } catch (error) {
+    ElMessage.error('获取联系人失败');
+  } finally {
+    loadingFriends.value = false;
+  }
+};
+
+// 【新增核心逻辑】确认发送给某个朋友
+const confirmShare = async (friend) => {
+  const user = checkLogin();
+  if (!user) return;
+
+  try {
+    await request.post('/interaction/message', {
+      sender_id: user.id,
+      receiver_id: friend.id,
+      content: '【作品分享】快来看看这幅作品！',
+      artwork_id: artwork.value.id
+    });
+    ElMessage.success(`成功分享给 ${friend.nickname}`);
+    showShareDialog.value = false;
+
+    // 分享完后可以选择是否跳过去聊天
+    router.push(`/message?chat_with=${friend.id}`);
+  } catch (error) {
+    ElMessage.error('分享失败');
+  }
+};
+
 const submitReport = async () => {
   const user = checkLogin();
   if (!user) return;
@@ -322,13 +357,8 @@ const submitReport = async () => {
   try {
     const res = await request.post('/interaction/report', { artwork_id: artwork.value.id, user_id: user.id, reason: finalReason });
     if(res.code === 200) {
-        ElMessage.success(res.message);
-        showReportDialog.value = false;
-        reportReason.value = '色情低俗';
-        customReportReason.value = '';
-    } else {
-        ElMessage.warning(res.message);
-    }
+        ElMessage.success(res.message); showReportDialog.value = false; reportReason.value = '色情低俗'; customReportReason.value = '';
+    } else { ElMessage.warning(res.message); }
   } catch (error) {} finally { reporting.value = false; }
 };
 
@@ -381,17 +411,14 @@ onMounted(async () => {
 .comments-section { border-top: 1px solid rgba(255,255,255,0.05); padding-top: 40px; }
 .section-title { font-size: 20px; font-weight: 500; margin-bottom: 25px; }
 .section-title .count { color: #666; font-size: 16px; margin-left: 5px; }
-
 .comment-input-box { margin-bottom: 40px; background: #111; border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; transition: 0.3s; }
 .comment-input-box.is-replying { border-color: #409eff; box-shadow: 0 0 10px rgba(64,158,255,0.1); }
 .reply-tip { font-size: 13px; color: #888; margin-bottom: 10px; display: flex; align-items: center; }
 .reply-tip span { color: #409eff; margin: 0 5px; font-weight: bold; }
 .cancel-reply { cursor: pointer; color: #f56c6c; margin-left: 10px; font-size: 16px; }
-
 :deep(.dark-input .el-textarea__inner) { background-color: transparent; box-shadow: none; color: #fff; padding: 0; resize: none; font-size: 15px; }
 :deep(.dark-input .el-textarea__inner:focus) { box-shadow: none; }
 .input-actions { display: flex; justify-content: flex-end; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
-
 .comments-list { display: flex; flex-direction: column; gap: 25px; }
 .comment-item { display: flex; gap: 15px; }
 .comment-avatar { border: 1px solid #333; }
@@ -403,7 +430,6 @@ onMounted(async () => {
 .comment-actions { display: flex; justify-content: flex-end; }
 .reply-btn { font-size: 12px; color: #666; cursor: pointer; transition: 0.3s; padding: 2px 5px; border-radius: 4px; }
 .reply-btn:hover { color: #409eff; background: rgba(64,158,255,0.1); }
-
 .replies-list { margin-top: 15px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 15px; }
 .reply-item { display: flex; gap: 10px; }
 .reply-avatar { border: 1px solid #444; }
@@ -420,13 +446,10 @@ onMounted(async () => {
 .author-avatar:hover { transform: scale(1.05); border-color: #555; }
 .author-name { font-size: 22px; margin: 0 0 10px; font-weight: 500; }
 .author-bio { font-size: 13px; color: #777; margin: 0 0 25px; line-height: 1.6; }
-
-/* 新增的作者操作区样式 */
 .author-actions { display: flex; gap: 10px; margin-top: 15px; }
 .follow-btn { flex: 1; margin: 0 !important; font-weight: bold; }
 .msg-btn { width: 40px; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; border-color: rgba(255,255,255,0.3); color: #fff; }
 .msg-btn:hover { border-color: #fff; color: #fff; background: rgba(255,255,255,0.1); }
-
 .action-card { background: #111; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 25px; display: flex; justify-content: space-around; }
 .action-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
 .action-item:hover .action-label { color: #fff; }
@@ -440,6 +463,7 @@ onMounted(async () => {
 .collect-btn.is-collected:hover { transform: scale(1.15); }
 .collect-btn :deep(svg) { transition: 0.3s; }
 .collect-btn.is-collected :deep(svg) { color: #e6a23c; transform: scale(1.1); }
+
 :deep(.dark-dialog) { background: #1a1a1c; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; }
 :deep(.dark-dialog .el-dialog__title) { color: #fff; font-weight: 500; }
 .report-desc { color: #888; font-size: 13px; margin-bottom: 20px; line-height: 1.5; text-align: left; }
@@ -447,4 +471,14 @@ onMounted(async () => {
 :deep(.el-radio) { color: #bbb; margin-bottom: 15px; width: 100%; }
 :deep(.el-radio__input.is-checked + .el-radio__label) { color: #f56c6c; font-weight: bold; }
 :deep(.el-radio__input.is-checked .el-radio__inner) { border-color: #f56c6c; background: #f56c6c; }
+
+/* 【新增】分享列表样式 */
+.share-header { color: #aaa; font-size: 14px; margin-bottom: 15px; }
+.share-friends-list { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; }
+.share-friend-item { display: flex; align-items: center; gap: 15px; background: #111; padding: 12px 15px; border-radius: 8px; cursor: pointer; transition: 0.3s; border: 1px solid rgba(255,255,255,0.03); }
+.share-friend-item:hover { background: #1a1a1c; border-color: rgba(255,255,255,0.1); }
+.share-friend-info { flex: 1; display: flex; flex-direction: column; }
+.share-friend-info .name { color: #fff; font-size: 15px; margin-bottom: 4px; }
+.share-friend-info .tag { font-size: 10px; color: #e6a23c; background: rgba(230,162,60,0.1); padding: 2px 6px; border-radius: 4px; width: fit-content; }
+.empty-state { text-align: center; color: #666; padding: 40px 0; font-size: 13px; }
 </style>

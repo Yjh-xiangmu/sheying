@@ -223,4 +223,41 @@ router.put('/appeals/:id/handle', async (req, res) => {
         res.status(500).json({ code: 500, message: '处理失败' });
     }
 });
+// --- 10. 获取全站评论列表 (优先显示待审核) ---
+router.get('/comments', async (req, res) => {
+    try {
+        const query = `
+            SELECT c.id, c.content, c.status, c.created_at,
+                   u.nickname as user_name, u.avatar,
+                   a.title as artwork_title, a.id as artwork_id
+            FROM comments c
+            LEFT JOIN users u ON c.user_id = u.id
+            LEFT JOIN artworks a ON c.artwork_id = a.id
+            ORDER BY c.status ASC, c.created_at DESC
+        `;
+        const [rows] = await db.query(query);
+        res.json({ code: 200, data: rows });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '获取评论失败' });
+    }
+});
+
+// --- 11. 处理评论 (审核通过放行 或 直接删除) ---
+router.put('/comments/:id/handle', async (req, res) => {
+    const { action } = req.body; // 'approve' 或 'delete'
+    try {
+        if (action === 'approve') {
+            await db.query('UPDATE comments SET status = 1 WHERE id = ?', [req.params.id]);
+            res.json({ code: 200, message: '评论已通过审核，前台可见' });
+        } else if (action === 'delete') {
+            // 直接物理删除违规评论，也可以考虑做连带的封号记分逻辑
+            await db.query('DELETE FROM comments WHERE id = ?', [req.params.id]);
+            res.json({ code: 200, message: '违规评论已彻底删除' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '处理失败' });
+    }
+});
 module.exports = router;

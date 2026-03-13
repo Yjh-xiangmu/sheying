@@ -4,7 +4,8 @@
       <div class="logo">FOCUS 摄影社区</div>
       <nav class="nav-links">
         <router-link to="/">发现</router-link>
-        <router-link to="/ranking">榜单</router-link>
+        <router-link to="/feed">动态</router-link>
+        <router-link to="/forum">交流区</router-link> <router-link to="/ranking">榜单</router-link>
       </nav>
       <div class="user-actions">
         <template v-if="isLoggedIn">

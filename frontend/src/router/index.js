@@ -44,6 +44,16 @@ const routes = [
         path: 'user/:id',
         name: 'UserSpace',
         component: () => import('../views/front/UserSpace.vue')
+      },
+        {
+        path: 'feed',
+        name: 'Feed',
+        component: () => import('../views/front/Feed.vue')
+      },
+        {
+        path: 'forum',
+        name: 'Forum',
+        component: () => import('../views/front/Forum.vue')
       }
     ]
   },
@@ -75,6 +85,11 @@ const routes = [
         path: 'appeals',
         name: 'AppealManage',
         component: () => import('../views/admin/AppealManage.vue')
+      },
+        {
+        path: 'comments',
+        name: 'CommentManage',
+        component: () => import('../views/admin/CommentManage.vue')
       }
     ]
   }

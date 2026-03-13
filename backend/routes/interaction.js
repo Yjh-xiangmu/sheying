@@ -198,22 +198,40 @@ router.post('/report', async (req, res) => {
         res.status(500).json({ code: 500, message: '举报提交失败' });
     }
 });
-// --- 10. 获取互关好友列表 (只有互相关注才能聊天) ---
+// --- 10. 获取消息联系人列表 (互关好友 + 聊过天的陌生人) ---
 router.get('/friends/:user_id', async (req, res) => {
     try {
-        // SQL 逻辑：查找既是我关注的，也关注了我的用户
+        const userId = req.params.user_id;
+
+        // 核心 SQL 逻辑：
+        // 1. 查出对方是否被我关注 (f1)，以及是否关注了我 (f2)
+        // 2. 如果 f1 和 f2 都成立，说明是互关 (isStranger = 0)；否则是陌生人 (isStranger = 1)
+        // 3. 过滤条件：是互关好友 OR 给我发过消息 OR 我给他发过消息
         const query = `
-            SELECT u.id, u.nickname, u.avatar 
-            FROM follows f1
-            JOIN follows f2 ON f1.follower_id = f2.following_id AND f1.following_id = f2.follower_id
-            JOIN users u ON f1.following_id = u.id
-            WHERE f1.follower_id = ?
+            SELECT u.id, u.nickname, u.avatar,
+                   IF(f1.follower_id IS NOT NULL AND f2.follower_id IS NOT NULL, 0, 1) AS isStranger
+            FROM users u
+            LEFT JOIN follows f1 ON f1.follower_id = ? AND f1.following_id = u.id
+            LEFT JOIN follows f2 ON f2.follower_id = u.id AND f2.following_id = ?
+            WHERE u.id != ? AND (
+                (f1.follower_id IS NOT NULL AND f2.follower_id IS NOT NULL)
+                OR u.id IN (SELECT sender_id FROM messages WHERE receiver_id = ?)
+                OR u.id IN (SELECT receiver_id FROM messages WHERE sender_id = ?)
+            )
         `;
-        const [rows] = await db.query(query, [req.params.user_id]);
+
+        // 依次传入 5 个 userId 替换 SQL 中的 ?
+        const [rows] = await db.query(query, [userId, userId, userId, userId, userId]);
+
+        // 将数据库的 0 和 1 转换为前端需要的 boolean 布尔值
+        rows.forEach(row => {
+            row.isStranger = row.isStranger === 1;
+        });
+
         res.json({ code: 200, data: rows });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ code: 500, message: '获取好友列表失败' });
+        res.status(500).json({ code: 500, message: '获取联系人列表失败' });
     }
 });
 

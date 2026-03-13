@@ -1,4 +1,4 @@
-<template xmlns="">
+<template>
   <div class="admin-layout">
     <aside class="sidebar">
       <div class="logo">FOCUS 控制台</div>
@@ -8,6 +8,7 @@
         <li><router-link to="/admin/users"><el-icon><User /></el-icon> 用户管理</router-link></li>
         <li><router-link to="/admin/reports"><el-icon><Warning /></el-icon> 举报处理</router-link></li>
         <li><router-link to="/admin/appeals"><el-icon><DocumentChecked /></el-icon> 申诉审核</router-link></li>
+        <li><router-link to="/admin/comments"><el-icon><ChatLineRound /></el-icon> 评论审核</router-link></li>
       </ul>
 
       <div class="logout-btn" @click="handleLogout">
@@ -24,7 +25,9 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { DataLine, Stamp, User, Warning, SwitchButton } from '@element-plus/icons-vue';
+
+// 【修复报错】：这里把所有后台需要的图标合并到了同一行，去掉了重复的 import
+import { DataLine, Stamp, User, Warning, DocumentChecked, SwitchButton, ChatLineRound } from '@element-plus/icons-vue';
 
 const router = useRouter();
 
