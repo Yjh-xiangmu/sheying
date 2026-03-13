@@ -18,8 +18,10 @@ app.use('/api/interaction', require('./routes/interaction')); // 新增互动路
 app.use('/api/certification', require('./routes/certification')); // 👇 新增这行，挂载认证路由
 app.use('/api/admin', require('./routes/admin')); // 👇 新增这行，挂载后台管理路由
 app.use('/api/user', require('./routes/user'));
-
-
+const forumRouter = require('./routes/forum');
+app.use('/api/forum', forumRouter); // 👉 重点是加上 /api
+const contestRouter = require('./routes/contest');
+app.use('/api/contest', contestRouter);
 app.get('/', (req, res) => {
     res.json({ code: 200, message: '摄影平台后端服务运行正常！' });
 });

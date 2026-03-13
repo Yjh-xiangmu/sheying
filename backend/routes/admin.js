@@ -1,4 +1,18 @@
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+
+// 配置 multer 存储引擎，将海报存入 uploads 文件夹
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/');
+    },
+    filename: function (req, file, cb) {
+        // 给上传的图片重命名，防止重名覆盖
+        cb(null, 'contest-' + Date.now() + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
 const router = express.Router();
 const db = require('../config/db');
 
@@ -258,6 +272,97 @@ router.put('/comments/:id/handle', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ code: 500, message: '处理失败' });
+    }
+});
+// --- 12. 获取全站论坛帖子列表 ---
+router.get('/topics', async (req, res) => {
+    try {
+        const query = `
+            SELECT t.id, t.title, t.content, t.view_count, t.is_pinned, t.is_elite, t.created_at,
+                   u.nickname as user_name, u.avatar
+            FROM topics t
+            LEFT JOIN users u ON t.user_id = u.id
+            ORDER BY t.created_at DESC
+        `;
+        const [rows] = await db.query(query);
+        res.json({ code: 200, data: rows });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '获取帖子列表失败' });
+    }
+});
+
+// --- 13. 修改帖子状态 (置顶 / 加精) ---
+router.put('/topics/:id/status', async (req, res) => {
+    const { field, value } = req.body; // field: 'is_pinned' 或 'is_elite', value: 0 或 1
+    if (!['is_pinned', 'is_elite'].includes(field)) {
+        return res.status(400).json({ code: 400, message: '非法操作' });
+    }
+    try {
+        await db.query(`UPDATE topics SET ${field} = ? WHERE id = ?`, [value, req.params.id]);
+        res.json({ code: 200, message: '状态更新成功' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '更新失败' });
+    }
+});
+
+// --- 14. 彻底删除违规帖子 (级联删除回帖) ---
+router.delete('/topics/:id', async (req, res) => {
+    try {
+        // 先删除该帖子下的所有回帖，防止产生孤儿数据
+        await db.query('DELETE FROM topic_replies WHERE topic_id = ?', [req.params.id]);
+        // 再删除主帖
+        await db.query('DELETE FROM topics WHERE id = ?', [req.params.id]);
+        res.json({ code: 200, message: '帖子及相关回复已彻底删除' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '删除失败' });
+    }
+});
+// --- 15. 发布新比赛 (支持本地上传海报) ---
+router.post('/contests', upload.single('cover'), async (req, res) => {
+    const { title, description, start_time, end_time } = req.body;
+
+    // 检查有没有收到文件
+    if (!req.file) {
+        return res.status(400).json({ code: 400, message: '请上传比赛海报图片' });
+    }
+
+    // 拼接出图片的访问路径
+    const cover_url = `/uploads/${req.file.filename}`;
+
+    try {
+        await db.query(
+            'INSERT INTO contests (title, description, cover_url, start_time, end_time) VALUES (?, ?, ?, ?, ?)',
+            [title, description, cover_url, start_time, end_time]
+        );
+        res.json({ code: 200, message: '比赛发布成功！' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '发布比赛失败' });
+    }
+});
+
+// --- 16. 获取全站比赛列表 (后台管理用) ---
+router.get('/contests', async (req, res) => {
+    try {
+        await db.query('UPDATE contests SET status = 0 WHERE end_time <= NOW() AND status = 1');
+        const [rows] = await db.query('SELECT * FROM contests ORDER BY created_at DESC');
+        res.json({ code: 200, data: rows });
+    } catch (error) {
+        res.status(500).json({ code: 500, message: '获取比赛列表失败' });
+    }
+});
+
+// --- 17. 提前结束或开启比赛 ---
+router.put('/contests/:id/status', async (req, res) => {
+    const { status } = req.body; // 1: 进行中, 0: 已结束
+    try {
+        await db.query('UPDATE contests SET status = ? WHERE id = ?', [status, req.params.id]);
+        res.json({ code: 200, message: '比赛状态已更新' });
+    } catch (error) {
+        res.status(500).json({ code: 500, message: '状态更新失败' });
     }
 });
 module.exports = router;

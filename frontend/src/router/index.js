@@ -54,6 +54,21 @@ const routes = [
         path: 'forum',
         name: 'Forum',
         component: () => import('../views/front/Forum.vue')
+      },
+        {
+        path: 'topic/:id',
+        name: 'TopicDetail',
+        component: () => import('../views/front/TopicDetail.vue')
+      },
+        {
+        path: 'contests',
+        name: 'ContestList',
+        component: () => import('../views/front/ContestList.vue')
+      },
+        {
+        path: 'contest/:id',
+        name: 'ContestDetail',
+        component: () => import('../views/front/ContestDetail.vue')
       }
     ]
   },
@@ -90,6 +105,16 @@ const routes = [
         path: 'comments',
         name: 'CommentManage',
         component: () => import('../views/admin/CommentManage.vue')
+      },
+        {
+        path: 'topics',
+        name: 'TopicManage',
+        component: () => import('../views/admin/TopicManage.vue')
+      },
+        {
+        path: 'contests',
+        name: 'ContestManage',
+        component: () => import('../views/admin/ContestManage.vue')
       }
     ]
   }

@@ -79,4 +79,30 @@ router.delete('/artwork/:id', async (req, res) => {
         res.status(500).json({ code: 500, message: '删除失败' });
     }
 });
+// --- 获取用户的比赛获奖与参赛记录 (仅限已结束的比赛) ---
+router.get('/:id/awards', async (req, res) => {
+    try {
+        // 核心逻辑：联表查询已结束的比赛，并通过子查询 (COUNT) 算出该用户的真实排名
+        const query = `
+            SELECT e.id as entry_id, e.votes,
+                   c.id as contest_id, c.title as contest_title, c.end_time,
+                   a.id as artwork_id, a.title as artwork_title, a.cover_url,
+                   (
+                       SELECT COUNT(*) + 1 
+                       FROM contest_entries e2 
+                       WHERE e2.contest_id = c.id AND e2.votes > e.votes
+                   ) as rank_num
+            FROM contest_entries e
+            JOIN contests c ON e.contest_id = c.id
+            JOIN artworks a ON e.artwork_id = a.id
+            WHERE e.user_id = ? AND c.status = 0
+            ORDER BY c.end_time DESC
+        `;
+        const [rows] = await db.query(query, [req.params.id]);
+        res.json({ code: 200, data: rows });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '获取个人荣誉失败' });
+    }
+});
 module.exports = router;

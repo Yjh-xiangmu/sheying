@@ -35,5 +35,61 @@ router.post('/create', async (req, res) => {
         res.status(500).json({ code: 500, message: '发布失败' });
     }
 });
+// --- 3. 获取帖子详情 (包含浏览量自动 +1) ---
+router.get('/detail/:id', async (req, res) => {
+    try {
+        // 每次点进详情，浏览量 + 1
+        await db.query('UPDATE topics SET view_count = view_count + 1 WHERE id = ?', [req.params.id]);
+
+        const query = `
+            SELECT t.*, u.nickname, u.avatar 
+            FROM topics t 
+            JOIN users u ON t.user_id = u.id 
+            WHERE t.id = ?
+        `;
+        const [rows] = await db.query(query, [req.params.id]);
+        if (rows.length > 0) {
+            res.json({ code: 200, data: rows[0] });
+        } else {
+            res.json({ code: 404, message: '帖子已被删除或不存在' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '获取帖子详情失败' });
+    }
+});
+
+// --- 4. 获取帖子的所有盖楼回复 ---
+router.get('/replies/:topic_id', async (req, res) => {
+    try {
+        const query = `
+            SELECT r.*, u.nickname, u.avatar, u.role
+            FROM topic_replies r
+            JOIN users u ON r.user_id = u.id
+            WHERE r.topic_id = ?
+            ORDER BY r.created_at ASC
+        `;
+        const [rows] = await db.query(query, [req.params.topic_id]);
+        res.json({ code: 200, data: rows });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '获取回帖失败' });
+    }
+});
+
+// --- 5. 发布回帖 (盖楼) ---
+router.post('/reply', async (req, res) => {
+    const { topic_id, user_id, content } = req.body;
+    try {
+        await db.query(
+            'INSERT INTO topic_replies (topic_id, user_id, content) VALUES (?, ?, ?)',
+            [topic_id, user_id, content]
+        );
+        res.json({ code: 200, message: '回复成功！' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ code: 500, message: '回复失败' });
+    }
+});
 
 module.exports = router;

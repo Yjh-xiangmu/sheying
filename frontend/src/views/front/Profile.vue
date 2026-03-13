@@ -81,6 +81,28 @@
               </div>
             </div>
           </el-tab-pane>
+
+          <el-tab-pane label="荣誉奖项" name="awards">
+            <div v-if="myAwards.length === 0" class="empty-state">
+              <el-icon size="50" color="#555"><Trophy /></el-icon>
+              <p>暂无获奖记录，多多参加摄影比赛吧！</p>
+            </div>
+            <div v-else class="awards-grid">
+              <div class="award-card" v-for="award in myAwards" :key="award.entry_id">
+                <div class="award-medal" :class="'rank-' + award.rank_num">
+                  {{ award.rank_num === 1 ? '🥇 冠军' : (award.rank_num === 2 ? '🥈 亚军' : (award.rank_num === 3 ? '🥉 季军' : `🎖️ 第${award.rank_num}名`)) }}
+                </div>
+                <img :src="getAvatarUrl(award.cover_url)" class="award-img" @click="$router.push(`/artwork/${award.artwork_id}`)" />
+                <div class="award-info">
+                  <h4 class="contest-name" @click="$router.push(`/contest/${award.contest_id}`)">{{ award.contest_title }}</h4>
+                  <div class="award-details">
+                    <span class="artwork-name">参赛作品：《{{ award.artwork_title }}》</span>
+                    <span class="vote-count">最终得票：{{ award.votes }} 票</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </el-tab-pane>
         </el-tabs>
       </div>
     </div>
@@ -90,7 +112,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Camera, Delete, StarFilled, Picture, Star, Medal } from '@element-plus/icons-vue';
+import { Camera, Delete, StarFilled, Picture, Star, Medal, Trophy } from '@element-plus/icons-vue';
 import request from '../../utils/request';
 import { useRouter } from 'vue-router';
 
@@ -102,6 +124,7 @@ const myArtworks = ref([]);
 const myCollections = ref([]);
 const followingList = ref([]);
 const followersList = ref([]);
+const myAwards = ref([]); // 【新增】奖项数组
 
 const saving = ref(false);
 const isEditing = ref(false);
@@ -110,10 +133,7 @@ const avatarInput = ref(null);
 
 const getAvatarUrl = (path) => path ? `http://localhost:3000${path}` : 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png';
 
-// 判断是否互关
-const isMutual = (userId) => {
-  return followingList.value.some(item => item.id === userId);
-};
+const isMutual = (userId) => followingList.value.some(item => item.id === userId);
 
 const refreshFollows = async () => {
   const res = await request.get(`/interaction/follows-list/${currentUser.value.id}`);
@@ -121,11 +141,10 @@ const refreshFollows = async () => {
   followersList.value = res.data.followers || [];
 };
 
-// 列表里的关注/取消关注/回关 操作
 const handleFollow = async (targetId) => {
   try {
     await request.post('/interaction/follow', { follower_id: currentUser.value.id, following_id: targetId });
-    await refreshFollows(); // 操作完立刻刷新列表状态
+    await refreshFollows();
   } catch (error) {}
 };
 
@@ -134,8 +153,11 @@ onMounted(async () => {
   if (userStr) {
     currentUser.value = JSON.parse(userStr);
     editForm.id = currentUser.value.id; editForm.nickname = currentUser.value.nickname; editForm.bio = currentUser.value.bio || '';
+
+    // 拉取所有数据
     request.get(`/user/${currentUser.value.id}/artworks`).then(res => myArtworks.value = res.data);
     request.get(`/user/${currentUser.value.id}/collections`).then(res => myCollections.value = res.data);
+    request.get(`/user/${currentUser.value.id}/awards`).then(res => myAwards.value = res.data); // 【新增】拉取奖项
     await refreshFollows();
   }
 });
@@ -179,7 +201,6 @@ const saveProfile = async () => {
 </script>
 
 <style scoped>
-/* 保持原有样式，仅在 user-card 增加操作按钮布局 */
 .profile-page { background-color: #050505; min-height: calc(100vh - 70px); color: #fff; padding-bottom: 80px; }
 .profile-banner { width: 100%; height: 350px; background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2000&auto=format&fit=crop') center center / cover no-repeat; position: relative; }
 .banner-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 150px; background: linear-gradient(to bottom, rgba(5,5,5,0), rgba(5,5,5,1)); }
@@ -214,7 +235,7 @@ const saveProfile = async () => {
 .work-title { font-size: 16px; font-weight: 500; color: #fff; margin-bottom: 6px; }
 .action-float-btn { position: absolute; top: 15px; right: 15px; transform: scale(0.8); opacity: 0; transition: all 0.3s; }
 .work-card:hover .action-float-btn { opacity: 1; transform: scale(1); }
-.empty-state { text-align: center; color: #555; padding: 120px 0; }
+.empty-state { text-align: center; color: #555; padding: 120px 0; display: flex; flex-direction: column; align-items: center; gap: 15px;}
 .user-list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding-top: 30px; }
 .user-card { display: flex; align-items: center; gap: 15px; background: #111; padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
 .user-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.15); }
@@ -222,4 +243,19 @@ const saveProfile = async () => {
 .user-name { font-size: 16px; color: #fff; font-weight: 500; margin-bottom: 5px; }
 .user-bio { font-size: 13px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .clickable { cursor: pointer; }
+
+/* 【新增】荣誉奖项墙样式 */
+.awards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; padding-top: 30px; }
+.award-card { display: flex; background: #111; border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; position: relative; transition: 0.3s; }
+.award-card:hover { border-color: #e6a23c; transform: translateY(-5px); box-shadow: 0 10px 20px rgba(230,162,60,0.1); }
+.award-img { width: 120px; height: 120px; object-fit: cover; cursor: pointer; }
+.award-info { padding: 15px; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.contest-name { font-size: 16px; margin: 0 0 10px 0; color: #eee; cursor: pointer; transition: 0.3s; }
+.contest-name:hover { color: #e6a23c; }
+.award-details { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: #888; }
+.award-medal { position: absolute; top: 10px; left: -5px; padding: 4px 15px; font-weight: bold; font-size: 12px; border-radius: 0 15px 15px 0; box-shadow: 2px 2px 10px rgba(0,0,0,0.5); z-index: 2;}
+.rank-1 { background: linear-gradient(90deg, #ffd700, #daa520); color: #000; }
+.rank-2 { background: linear-gradient(90deg, #e0e0e0, #9e9e9e); color: #000; }
+.rank-3 { background: linear-gradient(90deg, #cd7f32, #8b4513); color: #fff; }
+.award-medal:not(.rank-1):not(.rank-2):not(.rank-3) { background: #333; color: #ccc; }
 </style>

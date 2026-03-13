@@ -9,6 +9,8 @@
         <li><router-link to="/admin/reports"><el-icon><Warning /></el-icon> 举报处理</router-link></li>
         <li><router-link to="/admin/appeals"><el-icon><DocumentChecked /></el-icon> 申诉审核</router-link></li>
         <li><router-link to="/admin/comments"><el-icon><ChatLineRound /></el-icon> 评论审核</router-link></li>
+        <li><router-link to="/admin/topics"><el-icon><Postcard /></el-icon> 论坛管理</router-link></li>
+        <li><router-link to="/admin/contests"><el-icon><Trophy /></el-icon> 赛事管理</router-link></li>
       </ul>
 
       <div class="logout-btn" @click="handleLogout">
@@ -25,18 +27,13 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-
-// 【修复报错】：这里把所有后台需要的图标合并到了同一行，去掉了重复的 import
-import { DataLine, Stamp, User, Warning, DocumentChecked, SwitchButton, ChatLineRound } from '@element-plus/icons-vue';
-
+import { DataLine, Stamp, User, Warning, DocumentChecked, SwitchButton, ChatLineRound, Postcard, Trophy } from '@element-plus/icons-vue';
 const router = useRouter();
 
 const handleLogout = () => {
-  // 清除本地存储，彻底断开登录状态
   localStorage.removeItem('token');
   localStorage.removeItem('user');
   ElMessage.info('管理员已安全退出');
-  // 跳转回前台默认首页
   router.push('/');
 };
 </script>
@@ -54,7 +51,6 @@ const handleLogout = () => {
 .menu li a { display: flex; align-items: center; gap: 10px; color: #aeb9c2; text-decoration: none; padding: 20px; transition: 0.3s; }
 .menu li a:hover, .menu li a.router-link-active { background-color: #1f2229; color: #409EFF; border-left: 4px solid #409EFF; }
 
-/* 底部退出按钮样式 */
 .logout-btn {
   padding: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;
   background-color: #1f2229; color: #f56c6c; cursor: pointer; transition: 0.3s; font-weight: bold;
