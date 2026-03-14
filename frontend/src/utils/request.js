@@ -24,6 +24,9 @@ request.interceptors.response.use(
     response => {
         const res = response.data;
         // 如果后端返回的 code 不是 200，说明业务出错，直接弹出错误提示
+        if (res.code === 403) {
+    return res;
+}
         if (res.code !== 200) {
             ElMessage.error(res.message || 'Error');
             return Promise.reject(new Error(res.message || 'Error'));
